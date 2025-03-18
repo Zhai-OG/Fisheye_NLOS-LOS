@@ -1,3 +1,33 @@
+
+
+# HOW TO USE Fisheye to classify the NLOS\LOS signal
+
+In complex urban environments, GNSS signals are often affected by multipath interference, leading to significant positioning errors.  Classifying NLOS and LOS signals to mitigate multipath errors is crucial for improving positioning accuracy.  Utilizing a fisheye lens to assist in detecting NLOS/LOS signals has been demonstrated as an effective approach.  However, achieving precise synchronization between the timestamps of captured images and GNSS data is a key challenge.  The default timestamp resolution of the Raspberry Pi is insufficient for this task.  A promising solution is to use a GPS PPS (Pulse Per Second) signal to achieve microsecond-level timing accuracy on the Raspberry Pi.
+This blog is structured as follows:
+1) Required Hardware Setup – Introduction to the necessary hardware components.
+2) GNSS PPS-Based Time Synchronization – Using GPS PPS to achieve high-precision timing on the Raspberry Pi.
+3) Sky-View Image Analysis – Determining the 180° field of view for sky visibility assessment.
+4) GNSS-Based Orientation Estimation – Applying GNSS data for directional positioning.
+5) Segmentation Algorithm – Implementing image segmentation techniques for NLOS/LOS classification.
+   
+# Required Hardware Setup (main)
+
+## 1. Fisheye Camera Equipment
+
+•	Raspberry Pi 5 / 4 / 4B – Single-board computer for image processing and GNSS synchronization. (We use Raspberry Pi 5)
+
+•	Raspberry Pi HQ Camera – High-quality camera module compatible with Raspberry Pi.
+
+•	Fisheye Lens – A lens with a field of view (FOV) of H/D/V ≥ 180°, suitable for capturing wide-angle sky images. ( Isometric projection model)
+
+## 2. GNSS Equipment
+
+•	Two GNSS Antennas – Used for positioning and orientation estimation.
+
+•	GNSS Receiver – Capable of processing multi-system GNSS signals for precise positioning and timing.(important: GNSS Receiver with PPS Support)
+
+
+
 # GNSS PPS-Based Time Synchronization with Raspberry Pi
 
 ## Introduction
@@ -129,3 +159,41 @@ Once configured, your Raspberry Pi should achieve **sub-microsecond accuracy** u
 Using **GNSS PPS-based time synchronization** with a Raspberry Pi provides a highly accurate and cost-effective solution for applications requiring precise timing. With **proper configuration**, it outperforms traditional NTP-based synchronization, achieving **microsecond-level accuracy**, and with PTP on Raspberry Pi 5, even **nanosecond precision**.
 
 By following this guide, you can set up a reliable GNSS-based timekeeping system, ensuring robust and accurate time synchronization for your projects.
+
+## Citation
+
+This guide is inspired by: [Revisiting Microsecond Accurate NTP for Raspberry Pi with GPS PPS in 2025](https://austinsnerdythings.com/2025/02/14/revisiting-microsecond-accurate-ntp-for-raspberry-pi-with-gps-pps-in-2025/).
+
+Special thanks to [Austin](https://austinsnerdythings.com/author/austin/) for the insights.
+
+
+# Sky-View Image Analysis – Determining the 180° field of view for sky visibility assessment.
+
+## 1.Setting Up the Raspberry Pi and HQ Camera
+
+To capture sky images with precise time alignment, we will use a **Raspberry Pi HQ Camera** with a **fisheye lens (FOV ≥ 180°)**. The camera is controlled by the Raspberry Pi, which will synchronize image capture with **GNSS PPS signals**.
+
+#### **Required Packages**
+Ensure that the necessary camera and timing libraries are installed:
+```bash
+sudo apt update
+sudo apt install libcamera-apps pps-tools python3-rpi.gpio
+```
+
+#### **Enable the Camera Interface**
+```bash
+sudo raspi-config
+```
+Navigate to:
+- **Interface Options** → **Camera** → **Enable**
+- **Reboot the Raspberry Pi** to apply changes:
+```bash
+sudo reboot
+```
+You can run 
+```bash
+libcamera-hello -t 0
+```
+Then, you maybe can see this picture 
+
+
