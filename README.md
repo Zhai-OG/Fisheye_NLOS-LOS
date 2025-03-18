@@ -172,8 +172,12 @@ Special thanks to [Austin](https://austinsnerdythings.com/author/austin/) for th
 
 ## **1.Setting Up the Raspberry Pi and HQ Camera**
 
-To capture sky images with precise time alignment, we will use a **Raspberry Pi HQ Camera** with a **fisheye lens (FOV ≥ 180°)**. The camera is controlled by the Raspberry Pi, which will synchronize image capture with **GNSS PPS signals**.
-![7de971af01d121f599acd5d224302e1](https://github.com/user-attachments/assets/86b48fae-6ded-4cc3-8db1-124f40c322a5)
+To capture sky images with precise time alignment, we will use a **Raspberry Pi HQ Camera** with a **fisheye lens (FOV ≥ 180°)**. 
+
+<img src= "https://github.com/user-attachments/assets/86b48fae-6ded-4cc3-8db1-124f40c322a5" alt="Image description" width="500">
+
+The camera is controlled by the Raspberry Pi, which will synchronize image capture with **GNSS PPS signals**.
+
 <img src= "https://github.com/user-attachments/assets/dee9c658-4311-425d-b025-8e8b1f716b24" alt="Image description" width="500">
 
 #### **Required Packages**
@@ -337,11 +341,7 @@ The heading angle **θ** is derived from the position coordinates of the two GNS
 1. **Obtain ECEF coordinates** (X, Y, Z) for both antennas.
 2. **Convert to local ENU coordinates** (East, North, Up).
 3. **Compute the heading angle** using the formula:
-$$
-   \[
-   \theta = \tan^{-1} \left( \frac{\Delta E}{\Delta N} \right)
-   \]
-$$
+$$   \theta = \tan^{-1} \left( \frac{\Delta E}{\Delta N} \right) $$
    where:
    - $$\( \Delta E \)$$ = Easting difference between the two antennas.
    - $$\( \Delta N \)$$ = Northing difference between the two antennas.
@@ -371,4 +371,4 @@ From there, I train the model to recognize patterns in the image that correspond
 
 This whole setup makes it much easier to filter out multipath-affected signals in GNSS positioning.  Instead of guessing or relying on hand-labeled data, I’m using real GNSS observations to drive the classification, making the whole process much more reliable and scalable.
 
-
+Sorry, this method is not publicly shown at the moment.
