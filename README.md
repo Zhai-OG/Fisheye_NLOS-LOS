@@ -323,7 +323,7 @@ To estimate orientation using GNSS, a dual-antenna setup is implemented. Two GNS
 
 ---
 
-## ** System Setup**
+## **System Setup**
 - **GNSS Receiver**: A multi-frequency GNSS receiver capable of processing dual-antenna inputs.
 - **Antenna Configuration**:  
   - **Front antenna** (Primary)  
@@ -359,8 +359,16 @@ $$
 
 This method provides a **robust GNSS-based heading solution** suitable for **vehicle navigation, robotics, and geospatial applications**.
 
+# **Segmentation Algorithm – Implementing image segmentation techniques for NLOS/LOS classification**
 
+When trying to classify NLOS and LOS regions in fisheye images, the key challenge is getting reliable training data without manually labeling everything.  Instead of manually marking LOS and NLOS areas, I take a different approach—I use the differences in satellite observations between a choke ring antenna and a regular GNSS antenna, along with observation residuals, to automatically identify these points.
 
+The idea is pretty straightforward: choke ring antennas are designed to suppress multipath signals, so they mostly receive direct LOS signals.  On the other hand, a standard GNSS antenna picks up both LOS and NLOS signals.  By comparing what each antenna detects, I can figure out which satellites are seen under LOS conditions and which ones are affected by multipath.  If a satellite shows up with low residuals on both antennas, it’s likely LOS.  But if it only appears on the regular antenna or has large observation residuals, it's likely NLOS.
 
+Once I have this classification, I project the satellites' azimuth and elevation angles onto the fisheye image using the camera’s lens model.  This automatically marks certain parts of the image as LOS or NLOS, giving me a set of reference points for training a segmentation model.
+
+From there, I train the model to recognize patterns in the image that correspond to LOS and NLOS regions.  Since fisheye cameras follow an equidistant projection model, I make sure to account for that in the mapping.  The result is a model that can take a fisheye image and accurately segment which areas are likely to be LOS or NLOS, without needing manual labeling.
+
+This whole setup makes it much easier to filter out multipath-affected signals in GNSS positioning.  Instead of guessing or relying on hand-labeled data, I’m using real GNSS observations to drive the classification, making the whole process much more reliable and scalable.
 
 
