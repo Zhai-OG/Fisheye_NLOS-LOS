@@ -1,14 +1,15 @@
 
 
-# HOW TO USE Fisheye to classify the NLOS\LOS signal
+# Using Fisheye Imaging to Classify NLOS and LOS Signals
 
 In complex urban environments, GNSS signals are often affected by multipath interference, leading to significant positioning errors.  Classifying NLOS and LOS signals to mitigate multipath errors is crucial for improving positioning accuracy.  Utilizing a fisheye lens to assist in detecting NLOS/LOS signals has been demonstrated as an effective approach.  However, achieving precise synchronization between the timestamps of captured images and GNSS data is a key challenge.  The default timestamp resolution of the Raspberry Pi is insufficient for this task.  A promising solution is to use a GPS PPS (Pulse Per Second) signal to achieve microsecond-level timing accuracy on the Raspberry Pi.
 This blog is structured as follows:
 1) Required Hardware Setup – Introduction to the necessary hardware components.
 2) GNSS PPS-Based Time Synchronization – Using GPS PPS to achieve high-precision timing on the Raspberry Pi.
-3) Sky-View Image Analysis – Determining the 180° field of view for sky visibility assessment.
-4) GNSS-Based Orientation Estimation – Applying GNSS data for directional positioning.
-5) Segmentation Algorithm – Implementing image segmentation techniques for NLOS/LOS classification.
+3) Time synchronization - Synchronizing GNSS Timestamps with Fisheye Camera Image Timestamps
+4) Sky-View Image Analysis – Determining the 180° field of view for sky visibility assessment.
+5) GNSS-Based Orientation Estimation – Applying GNSS data for directional positioning.
+6) Segmentation Algorithm – Implementing image segmentation techniques for NLOS/LOS classification.
    
 # Required Hardware Setup (main)
 
@@ -152,26 +153,28 @@ sudo apt install linuxptp
 sudo ptp4l -i eth0 -m
 ```
 
-## Results and Accuracy
+### Results and Accuracy
 Once configured, your Raspberry Pi should achieve **sub-microsecond accuracy** using GNSS PPS. Using PTP on Raspberry Pi 5, synchronization can be improved further to the **double-digit nanosecond range**, making it suitable for scientific and industrial applications.
 
-## Conclusion
+### Conclusion
 Using **GNSS PPS-based time synchronization** with a Raspberry Pi provides a highly accurate and cost-effective solution for applications requiring precise timing. With **proper configuration**, it outperforms traditional NTP-based synchronization, achieving **microsecond-level accuracy**, and with PTP on Raspberry Pi 5, even **nanosecond precision**.
 
 By following this guide, you can set up a reliable GNSS-based timekeeping system, ensuring robust and accurate time synchronization for your projects.
 
-## Citation
+### Citation
 
 This guide is inspired by: [Revisiting Microsecond Accurate NTP for Raspberry Pi with GPS PPS in 2025](https://austinsnerdythings.com/2025/02/14/revisiting-microsecond-accurate-ntp-for-raspberry-pi-with-gps-pps-in-2025/).
 
 Special thanks to [Austin](https://austinsnerdythings.com/author/austin/) for the insights.
 
 
-# Sky-View Image Analysis – Determining the 180° field of view for sky visibility assessment.
+# Synchronizing GNSS Timestamps with Fisheye Camera Image Timestamps
 
-## 1.Setting Up the Raspberry Pi and HQ Camera
+## **1.Setting Up the Raspberry Pi and HQ Camera**
 
 To capture sky images with precise time alignment, we will use a **Raspberry Pi HQ Camera** with a **fisheye lens (FOV ≥ 180°)**. The camera is controlled by the Raspberry Pi, which will synchronize image capture with **GNSS PPS signals**.
+![7de971af01d121f599acd5d224302e1](https://github.com/user-attachments/assets/86b48fae-6ded-4cc3-8db1-124f40c322a5)
+<img src= "https://github.com/user-attachments/assets/dee9c658-4311-425d-b025-8e8b1f716b24" alt="Image description" width="500">
 
 #### **Required Packages**
 Ensure that the necessary camera and timing libraries are installed:
@@ -195,5 +198,169 @@ You can run
 libcamera-hello -t 0
 ```
 Then, you maybe can see this picture 
+
+<img src= "https://github.com/user-attachments/assets/dee9c658-4311-425d-b025-8e8b1f716b24" alt="Image description" width="500">
+
+
+## **2. Synchronizing Image Capture with GNSS PPS**
+
+The PPS signal provides a **high-accuracy time reference**. Our goal is to capture **5 images per second**, ensuring that the camera starts capturing precisely **on each PPS pulse**.
+
+Since **GNSS PPS-Based Time Synchronization with Raspberry Pi** has already been set up, the PPS signal is functioning correctly.
+
+## **3. Capturing Images at PPS Timing**
+
+We use a **Python script** to detect PPS pulses and trigger the camera:
+
+```python
+import time
+import subprocess
+import RPi.GPIO as GPIO
+
+# GPIO pin for PPS signal
+PPS_PIN = 18
+
+# Configure GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PPS_PIN, GPIO.IN)
+
+def capture_images():
+    """Captures 5 images per second triggered by PPS."""
+    for i in range(5):
+        timestamp = time.strftime("%Y%m%d_%H%M%S") + f"_{i}"
+        subprocess.run(["libcamera-still", "-o", f"image_{timestamp}.jpg", "--immediate"])
+        time.sleep(0.2)  # 5 FPS (1s / 5 = 0.2s per image)
+
+def pps_callback(channel):
+    """Triggered on each PPS pulse."""
+    print("PPS pulse detected, capturing images...")
+    capture_images()
+
+# Attach interrupt to PPS pin
+GPIO.add_event_detect(PPS_PIN, GPIO.RISING, callback=pps_callback)
+
+print("Waiting for PPS signal...")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    GPIO.cleanup()
+```
+
+## **4. Expected Output**
+When a PPS pulse is received, the script will capture **5 images per second**, naming them with timestamps:
+
+```
+image_20250318_123456_0.jpg
+image_20250318_123456_1.jpg
+image_20250318_123456_2.jpg
+image_20250318_123456_3.jpg
+image_20250318_123456_4.jpg
+```
+
+## **Conclusion**
+
+By leveraging **GNSS PPS signals**, the Raspberry Pi HQ Camera can achieve **precise image timestamping** for sky-view analysis. This method ensures **accurate synchronization** between GNSS data and image capture, making it useful for **atmospheric studies, satellite tracking, and environmental monitoring**.
+
+# Sky-View Image Analysis and Satellite Projection in Camera Coordinate System
+
+## Introduction
+
+If you're lucky, you'll get an image with clear boundaries. Using Canny edge detection and Hough Circle Transform, you can accurately determine the image boundaries.
+
+<img src= "https://github.com/user-attachments/assets/feba4297-b041-4854-8c49-5aafad01fabc" alt="Image description" width="500">
+
+In most cases, due to lighting conditions, it is challenging to accurately determine the image boundaries, as shown：
+
+<img src="https://github.com/user-attachments/assets/d51b3db4-47ad-4ee3-afe2-850c13bec36d" alt="Image description" width="500">
+
+This means that it is not possible to precisely define the **horizontal 180° field of view (FOV)**. Generally, fisheye lenses use an **equidistant projection model**, but without clearly defined boundaries, mapping between camera coordinates and **ECEF coordinates** becomes difficult. Therefore, we need to address this issue.
+
+## **Step 1: Creating a Reference Boundary**
+
+To establish a clear boundary for the 180° field of view, we use a **cylindrical object** at the same height as the camera’s horizontal plane. A continuous **reference line** is drawn around the cylinder at this level, as illustrated:
+
+<img src="https://github.com/user-attachments/assets/e120fbfa-1333-4a01-9dc8-4551d9628a47" alt="Image description" width="500">
+
+- The camera captures an image of this setup, providing a controlled reference for further calculations.
+
+## **Step 2: Detecting the Circle with find_circle.py**
+
+To extract the camera's **pixel center** and the **effective pixel radius corresponding to 180°**, use `find_circle.py`.Then you can see
+
+<img src="https://github.com/user-attachments/assets/e1bf98e2-47f2-4c5f-ad9d-551b0113d76e" alt="Image description" width="500">
+
+Since a FOV of exactly 180° might make boundary detection difficult, it is recommended to use a FOV **greater than 180°** for better results.
+
+### **Expected Output:**
+- The **image center (pixel coordinates)**.
+- The **radius (in pixels) corresponding to the 180° FOV**.
+
+## **Step 3: Satellite Coordinate Projection**
+
+Next, satellite positions are projected onto the camera image. The steps involved are:
+
+1. **Compute Azimuth and Elevation Angles**:  
+   - Use **RTKLIB’s `rtkplot` tool** to determine the satellite’s azimuth and elevation angles.
+
+2. **Establish Projection Relationships**:  
+   - Compute the transformation between the **satellite's angular position** and **image pixel coordinates**.
+
+3. **Perform the Projection**:  
+   - Use the script `ecef_to_camera.py` to map satellite coordinates onto the image.
+
+### **Expected Result:**
+
+After completing these steps, you should obtain an image where **satellite positions** are accurately overlaid, as shown below:
+
+<img src="https://github.com/user-attachments/assets/a043852a-478f-43fe-a049-0b47383b4403" alt="Image description" width="500">
+
+This method ensures precise alignment of GNSS satellite data with the camera's fisheye image, providing an effective solution for sky-view analysis.
+
+# **GNSS-Based Orientation Estimation – Applying GNSS data for directional positioning**
+
+To estimate orientation using GNSS, a dual-antenna setup is implemented. Two GNSS antennas are placed **8 meters apart** in a front-rear configuration to determine heading direction. By analyzing the differential position data from both antennas, the heading angle can be accurately calculated.
+
+---
+
+## ** System Setup**
+- **GNSS Receiver**: A multi-frequency GNSS receiver capable of processing dual-antenna inputs.
+- **Antenna Configuration**:  
+  - **Front antenna** (Primary)  
+  - **Rear antenna** (Secondary, positioned 8m behind the primary)  
+
+---
+
+## **Calculation Method**  
+The heading angle **θ** is derived from the position coordinates of the two GNSS antennas:
+
+1. **Obtain ECEF coordinates** (X, Y, Z) for both antennas.
+2. **Convert to local ENU coordinates** (East, North, Up).
+3. **Compute the heading angle** using the formula:
+$$
+   \[
+   \theta = \tan^{-1} \left( \frac{\Delta E}{\Delta N} \right)
+   \]
+$$
+   where:
+   - $$\( \Delta E \)$$ = Easting difference between the two antennas.
+   - $$\( \Delta N \)$$ = Northing difference between the two antennas.
+
+4. **Heading Correction**:  
+   - If GNSS is in motion, corrections based on velocity vector may be applied.
+   - When stationary, the computed heading remains accurate as long as both antennas maintain a stable position.
+
+---
+
+## **Advantages of This Approach**  
+- **High Accuracy**: A longer baseline (8m) improves heading precision.
+- **No External Sensors Needed**: Unlike IMU-based heading estimation, this method relies solely on GNSS data.
+- **Reliable in Low-Dynamics Scenarios**: Effective even in stationary or slow-moving applications.
+
+This method provides a **robust GNSS-based heading solution** suitable for **vehicle navigation, robotics, and geospatial applications**.
+
+
+
+
 
 
