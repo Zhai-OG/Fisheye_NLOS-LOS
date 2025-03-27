@@ -93,20 +93,36 @@ Connect the GNSS receiver to the Raspberry Pi using the following pins:
 | **TX**       | **Pin 10 (RXD0)** |
 | **PPS**      | **Pin 12 (GPIO18)** |
 
+<img src="https://github.com/user-attachments/assets/57123077-f866-4fbb-b47c-ff23ef0dd91a" alt="GNSS to Pi Wiring" width="500">
+
+> 🧩 **Note:** The GNSS receiver board shown above is developed by **BDsmart**, a division of the **Aerospace Information Research Institute, Chinese Academy of Sciences**.
+
+
+ **enable serial hardware port**-Run raspi-config -> 3 – Interface options -> I6 – Serial Port -> Would you like a login shell to be available over serial -> No. -> Would you like the serial port hardware to be enabled -> Yes.
+
+<img src="https://github.com/user-attachments/assets/127868ed-53c0-474f-a54a-a92e87b18d78" alt="result" width="500">
+
 ### **4. Verify PPS Signal Reception**
 Load the PPS kernel module and check for PPS signals:
 ```bash
-sudo modprobe pps-gpio
-dmesg | grep pps
+lsmod | grep pps
+austin@raspberrypi4:~ $ lsmod | grep pps
 ```
 Expected output:
 ```
-pps pps0: registered IRQ 169 as PPS source
+pps_gpio               49152  0
 ```
+
+<img src="https://github.com/user-attachments/assets/d928d480-52a0-4834-808d-bc72234b4df2" alt="result" width="500">
+
 To test PPS signal:
 ```bash
 sudo ppstest /dev/pps0
 ```
+
+<img src="https://github.com/user-attachments/assets/517acb81-739c-4c28-b6fd-ef4c1e14b8fe" alt="result" width="500">
+
+
 
 ### **5. Configure GPSd for Time Synchronization**
 Edit the GPSd configuration file:
@@ -115,17 +131,49 @@ sudo nano /etc/default/gpsd
 ```
 Modify the following lines:
 ```
-DEVICES="/dev/ttyAMA0 /dev/pps0"
-GPSD_OPTIONS="-n"
-START_DAEMON="true"
-USBAUTO="true"
+DEVICES="/dev/ttyAMA0 /dev/pps0"    # on raspberry pi 5 with raspberry pi os based on debian 12 (bookworm)
+GPSD_OPTIONS="-n"                   # -n means start without a client connection (i.e. at boot)
+START_DAEMON="true"                 # also start in general
+USBAUTO="true"                      # Automatically hot add/remove USB GPS devices via gpsdctl
 ```
 Restart the service:
 ```bash
 sudo reboot
 ```
 
-### **6. Configuring Chrony for Time Synchronization**
+### **6. check GPS for good measure**
+To verify that the GPS receiver is operating correctly and has acquired a valid position fix, tools like gpsmon or cgps can be used.
+
+Between the two tools, gpsmon offers a clearer display of timing-related data, whereas cgps is better suited for monitoring satellite usage and precision indicators like TDOP (Timing Dilution of Precision).  TDOP reflects how geometry affects timing accuracy — lower values indicate better satellite geometry, which enhances the precision of internal clock synchronization.
+```bash
+cgps
+```
+<img src="https://github.com/user-attachments/assets/6386632e-8836-43f4-82ca-962e7b06ee76" alt="result" width="500">
+
+```bash
+gpsmon
+```
+<img src="https://github.com/user-attachments/assets/b7f9a238-6d45-4996-8caf-d9d91b21ce52" alt="result" width="500">
+
+If you open cgps or gpsmon and no data appears at all, it may not be a software issue — your GPS module might not be communicating with the Raspberry Pi correctly.
+In that case, you can use a serial terminal tool like cutecom to check whether any raw NMEA data is being received over the serial interface (specifically on the Pi’s RX pin, which receives data from the GPS module’s TX pin).
+Seeing readable NMEA sentences (starting with $GPRMC, $GPGGA, etc.) confirms that serial communication is working.
+
+```bash
+sudo apt install cutecom
+sudo cutecom
+```
+- Select the correct serial device (e.g., /dev/serial0 or /dev/ttyS0)
+
+- Set baud rate (commonly 9600 or 115200, depending on your GPS)
+
+- Click “Open”
+- 
+If everything is wired and configured correctly, you should see raw NMEA sentences like:
+
+<img src="https://github.com/user-attachments/assets/b958b444-784d-4920-ad33-cccfdbefcfc6" alt="result" width="500">
+
+### **7. Configuring Chrony for Time Synchronization**
 Edit Chrony’s configuration file:
 ```bash
 sudo nano /etc/chrony/chrony.conf
@@ -145,8 +193,19 @@ Verify synchronization:
 chronyc tracking
 chronyc sources
 ```
+<img src="https://github.com/user-attachments/assets/a1d9a025-fc72-4136-bfe8-cbf843769b0f" alt="result" width="500">
 
-### **7. Achieving Microsecond Precision with PTP (Raspberry Pi 5 Only)**
+This screenshot was taken just seconds after restarting `chrony`.  
+- The `*` before **NMEA** indicates it is the currently selected time source.  
+- The `?` before **PPS** means it hasn’t been validated yet (e.g., not enough samples).  
+- The `reach` column shows `0`, meaning PPS hasn't been polled yet — which is expected immediately after a restart.
+
+Wait 10 sec or one minute and try again.
+
+<img src="hhttps://github.com/user-attachments/assets/ad89ca31-beac-4499-bca8-ac90cecfd644" alt="result" width="500">
+
+
+### **8. Achieving Microsecond Precision with PTP (Raspberry Pi 5 Only)**
 For **nanosecond-level accuracy**, install and configure PTP:
 ```bash
 sudo apt install linuxptp
